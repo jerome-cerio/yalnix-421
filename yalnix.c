@@ -203,7 +203,6 @@ extern void KernelStart (ExceptionInfo *info, unsigned int pmem_size, void *orig
     }
 }
 
-
 /* Sets the break address for the kernel */
 extern int SetKernelBrk (void *addr) {
     TracePrintf(0, "executing SetKernelBrk() with addr %p\n", addr);
