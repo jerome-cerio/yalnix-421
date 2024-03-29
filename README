@@ -4,7 +4,7 @@ Team:
 Jerome Cerio - jjc9
 Samuel Yu - shy1
 
-Lab Layout:
+Lab Parts + Layout:
 
 memorymanagement: Handles all the memory operations and management of page tables and free pages.
 arguments: Validates the string arguments of files.
