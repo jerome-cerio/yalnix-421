@@ -3,14 +3,12 @@
 #include <string.h>
 
 #include <comp421/yalnix.h>
+#include <comp421/hardware.h>
 
 #include "systemcalls.h"
-#include "queues.h"
-#include "arguments.h"
 #include "processes.h"
 #include "memorymanagement.h"
-#include "io.h"
-
+#include "arguments.h"
 
 /* Creates a new process */
 int KernelFork (int caller_pid) {
@@ -19,7 +17,7 @@ int KernelFork (int caller_pid) {
     int retval;
 
     // Checks if there is enough free memory
-    if(active->used_npg + 1 > free_npg) {
+    if(active->used_npg + 1 > num_free_pages) {
         TracePrintf(10, "Fork: not enough free pages\n");
         return ERROR;
     }
@@ -54,7 +52,7 @@ int KernelFork (int caller_pid) {
     ContextSwitch(InitContext, &child_process->ctx, (void*) active, NULL);
 
     // Case 1 : parent process
-    if(active->pid == caller_pid)
+    if(active->pid == (unsigned int) caller_pid)
 
         // Returns the PID of the child to the parent
         return child_process->pid;
@@ -233,7 +231,7 @@ int KernelBrk (void *addr) {
     int i;
 
     // Validates the argument
-    if((uintptr_t) addr < VMEM_0_BASE || (uintptr_t) addr >= active->user_stack_base - PAGESIZE) {
+    if((long int) addr < VMEM_0_BASE || (long int) addr >= (long int) active->user_stack_base - PAGESIZE) {
         TracePrintf(10, "Brk: invalid break address %p\n", addr);
         return ERROR;
     }
@@ -256,7 +254,7 @@ int KernelBrk (void *addr) {
         end_index = (UP_TO_PAGE(addr) - VMEM_0_BASE) >> PAGESHIFT;
 
         // Checks if there are enough free pages
-        if(end_index - start_index > free_npg) {
+        if(end_index - start_index > num_free_pages) {
 
             // Frees the borrowed PTE
             ReleasePTE();

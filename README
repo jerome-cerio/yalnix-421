@@ -1,0 +1,16 @@
+COMP 421 - Lab 2 - Yalnix Operating System
+
+Team:
+Jerome Cerio - jjc9
+Samuel Yu - shy1
+
+Lab Layout:
+
+memorymanagement: Handles all the memory operations and management of page tables and free pages.
+arguments: Validates the string arguments of files.
+interrupthandlers: Contains all the trap handlers for traps, exceptions, and interrupts.
+processes: Deals with individual processes, PCB management, process lists, and context switching.
+systemcalls: Handles the system calls, such as Fork, Delay, Exec, Exit, etc.
+yalnix: Contains KernelStart and other kernel-specific routines.
+
+This program works at least on basic init and idle proceses, as well as ends when physical memory is expended.

@@ -5,14 +5,11 @@
 #include <stdlib.h>
 
 #include <comp421/loadinfo.h>
+#include <comp421/yalnix.h>
 #include <comp421/hardware.h>
 
-#include "queue.h"
-#include "list.h"
-#include "proc.h"
-#include "mmu.h"
-#include "io.h"
-
+#include "processes.h"
+#include "memorymanagement.h"
 
 /* Helps initialize a PCB */
 int InitProcess (struct pcb *pcb, enum state_t state, uintptr_t addr) {
@@ -37,7 +34,7 @@ int InitProcess (struct pcb *pcb, enum state_t state, uintptr_t addr) {
     pcb->output_buf.size = 0;
 
     // Creates queues for child processes
-    pcb->running_chd = (struct list*) malloc(sizeof(struct list));
+    pcb->running_chd = (struct proc_list*) malloc(sizeof(struct proc_list));
     pcb->exited_chd = (struct queue*) malloc(sizeof(struct queue));
     if(!pcb->running_chd || !pcb->exited_chd)
         return ERROR;
@@ -54,7 +51,7 @@ struct pcb* MoveProcesses (enum state_t new_state, void *new_dest) {
 
     struct pcb *new_process;
     struct queue *q;
-    struct list *l;
+    struct proc_list *l;
 
     // Marks the current process as not running
     active->state = new_state;
@@ -68,7 +65,7 @@ struct pcb* MoveProcesses (enum state_t new_state, void *new_dest) {
             enq(q, active);
         }
         if(new_state == DELAYED || new_state == WAITING) {
-            l = (struct list*) new_dest;
+            l = (struct proc_list*) new_dest;
             insertl(l, active);
         }
     }
@@ -127,6 +124,7 @@ SavedContext* InitContext (SavedContext *ctxp, void *proc, void *unused) {
 
     struct pcb *process;
     uintptr_t addr;
+    (void) unused;
 
     // Gets the PCB for the process
     process = (struct pcb*) proc;
@@ -151,6 +149,7 @@ SavedContext* Switch (SavedContext *ctxp, void *p1, void *p2) {
 
     struct pcb *pcb1, *pcb2;
     uintptr_t addr;
+    (void) ctxp;
 
     // Gets the PCBs for the two processes
     pcb1 = (struct pcb*) p1;
@@ -176,8 +175,10 @@ SavedContext* Switch (SavedContext *ctxp, void *p1, void *p2) {
 }
 
 
-/* Loads a program in the current process's address space */
+// /* Loads a program in the current process's address space */
 int LoadProgram (char *name, char **args, ExceptionInfo *info) {
+
+    TracePrintf(0, "Entering load program. %s process", name);
 
     int fd;
     int status;
@@ -274,7 +275,7 @@ int LoadProgram (char *name, char **args, ExceptionInfo *info) {
     pt0 = (struct pte*) (borrowed_addr + ((active->ptaddr0 - PMEM_BASE) & PAGEOFFSET));
 
     // Makes sure there will be enough physical memory to load the new program
-    available_npg = free_npg;
+    available_npg = num_free_pages;
     for(i = 0; i < PAGE_TABLE_LEN - KERNEL_STACK_PAGES; i++)
         if(pt0[i].valid)
             available_npg++;
@@ -348,7 +349,7 @@ int LoadProgram (char *name, char **args, ExceptionInfo *info) {
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
 
     // Reads the text and data from the file into memory
-    if(read(fd, (void*) MEM_INVALID_SIZE, li.text_size + li.data_size) != li.text_size + li.data_size) {
+    if((long int)(read(fd, (void*) MEM_INVALID_SIZE, li.text_size + li.data_size)) != (long int)(li.text_size + li.data_size)) {
         TracePrintf(0, "LoadProgram: couldn't read for '%s'\n", name);
         free(argbuf);
         close(fd);
@@ -376,7 +377,7 @@ int LoadProgram (char *name, char **args, ExceptionInfo *info) {
     // Builds the argument list on the new stack
     *cpp++ = (char*) argcount;
     cp2 = argbuf;
-    for(i = 0; i < argcount; i++) {
+    for(i = 0; i < (int) argcount; i++) {
         *cpp++ = cp;
         strcpy(cp, cp2);
         cp += strlen(cp) + 1;
@@ -397,4 +398,144 @@ int LoadProgram (char *name, char **args, ExceptionInfo *info) {
     WriteRegister(REG_TLB_FLUSH, (RCS421RegVal) pt0);
 
     return 0;
+}
+
+/* Initializes a process list */
+void linit (struct proc_list *l) {
+
+	// Marks the list as empty
+	l->head = NULL;
+	l->size = 0;
+}
+
+
+/* Adds a process to the list */
+void insertl (struct proc_list *l, struct pcb *p) {
+
+	struct pcb_node *pframe;
+
+	// Creates a new process frame
+	pframe = (struct pcb_node*) malloc(sizeof(struct pcb_node));
+	pframe->proc = p;
+
+	// Adds it at the start of the list
+	pframe->next = l->head;
+	l->head = pframe;
+
+	// Increments the size of the list
+	l->size++;
+}
+
+
+/* Removes a process from the list */
+void deletel (struct proc_list *l, struct pcb *p) {
+
+	struct pcb_node *pframe = l->head, *delete_pframe = NULL;
+
+	// Case 1 : first frame needs to be deleted
+	if(pframe->proc == p) {
+		delete_pframe = pframe;
+
+		// Updates the list head
+		l->head = pframe->next;
+	}
+
+	// Case 2 : any other frame needs to be deleted
+	else {
+
+		// Finds the right frame to delete
+		while(pframe->next->proc != p)
+			pframe = pframe->next;
+		delete_pframe = pframe->next;
+
+		// Updates the frame pointers
+		pframe->next = pframe->next->next;
+	}
+
+	// Frees the process frame
+	free(delete_pframe);
+
+	// Decrements the size of the list
+	l->size--;
+}
+
+
+/* Updates the remaining clock ticks for all processes in a list */
+void clockl (struct proc_list *l) {
+
+	struct pcb_node *pframe;
+
+	// Iterates over each process in the list
+	pframe = l->head;
+	while(pframe) {
+
+		// Decrements the clock ticks if applicable
+		if(pframe->proc->clock_ticks > 0)
+			pframe->proc->clock_ticks--;
+
+		pframe = pframe->next;
+	}
+}
+
+
+/* Updates the parent process for all processes in a list */
+void exitl (struct proc_list *l) {
+
+	struct pcb_node *pframe;
+
+	// Iterates over each process in the list
+	pframe = l->head;
+	while(pframe) {
+
+		// Sets the parent pointer to NULL
+		pframe->proc->parent = NULL;
+
+		pframe = pframe->next;
+	}
+}
+
+
+/* Returns a process that is done blocking */
+struct pcb* readyl (struct proc_list *l) {
+
+	struct pcb_node *pframe;
+
+	// Iterates over each process in the list
+	pframe = l->head;
+	while(pframe) {
+
+		// Checks if the clock ticks for a process are up
+		if(pframe->proc->clock_ticks == 0) {
+			pframe->proc->clock_ticks = -1;
+			return pframe->proc;
+		}
+
+		pframe = pframe->next;
+	}
+
+	// Returns NULL if there are no such processes
+	return NULL;
+}
+
+/* Checks if a list is empty */
+int lempty (struct proc_list l) {
+	return (l.size == 0);
+}
+
+/* Destroys a process list */
+void ldestroy (struct proc_list *l) {
+
+	struct pcb_node *pframe, *delete_pframe;
+
+	// Iterates over each process in the list
+	pframe = l->head;
+	while(pframe) {
+
+		// Gets the frame to be deleted
+		delete_pframe = pframe;
+		pframe = pframe->next;
+
+		// Frees the process frame
+		free(delete_pframe);
+	}
 }

@@ -1,9 +1,7 @@
 #ifndef QUEUES_H
 #define QUEUES_H
 
-
 #include "processes.h"
-
 
 // Declares structures to allow PCB manipulation
 struct pcb;

@@ -5,8 +5,7 @@
 #include <comp421/hardware.h>
 #include <comp421/yalnix.h>
 
-#include "mmu.h"
-
+#include "memorymanagement.h"
 
 /* Gets a free page from the free page list */
 int GetPage () {
@@ -23,7 +22,7 @@ int GetPage () {
     free_head = *addr;
 
     // Decrements the number of free pages
-    free_npg--;
+    num_free_pages--;
 
     // Frees the borrowed PTE
     ReleasePTE();
@@ -47,7 +46,7 @@ void FreePage (int index, int pfn) {
     free_head = pfn;
 
     // Increments the number of free pages
-    free_npg++;
+    num_free_pages++;
 }
 
 
@@ -100,12 +99,12 @@ uintptr_t GetPageTable () {
     unsigned int pfn;
 
     // Looks for a free slot for the new page table
-    for(i = 0; i < free_ntbl; i++)
+    for(i = 0; i < num_free_tables; i++)
         if(abs(free_tables[i]) == 1)
             break;
 
     // Case 1 : no free slot exists
-    if(i == free_ntbl) {
+    if(i == num_free_tables) {
         pfn = GetPage();
 
         // Puts the new page table at the middle address

@@ -2,7 +2,6 @@
 
 #include "queues.h"
 
-
 /* Initializes a process queue */
 void qinit (struct queue *q) {
 
@@ -16,10 +15,10 @@ void qinit (struct queue *q) {
 /* Adds a process to the back of the queue */
 void enq (struct queue *q, struct pcb *p) {
 
-	struct pcb_frame *pframe;
+	struct pcb_node *pframe;
 
 	// Creates a new process frame
-	pframe = (struct pcb_frame*) malloc(sizeof(struct pcb_frame));
+	pframe = (struct pcb_node*) malloc(sizeof(struct pcb_node));
 	pframe->proc = p;
 	pframe->next = NULL;
 
@@ -40,7 +39,7 @@ void enq (struct queue *q, struct pcb *p) {
 /* Removes a process from the front of the queue */
 struct pcb* deq (struct queue *q) {
 
-	struct pcb_frame *pframe;
+	struct pcb_node *pframe;
 	struct pcb *process;
 
 	// Gets the process at the head of the queue
@@ -78,7 +77,7 @@ int qempty (struct queue q) {
 /* Destroys a process queue */
 void qdestroy (struct queue *q) {
 
-	struct pcb_frame *pframe, *delete_pframe;
+	struct pcb_node *pframe, *delete_pframe;
 
 	// Iterates over each process in the queue
 	pframe = q->head;

@@ -1,9 +1,7 @@
 #ifndef SYSTEMCALLS_H
 #define SYSTEMCALLS_H
 
-
 #include <comp421/hardware.h>
-
 
 // System call handler prototypes
 int KernelFork (int );
@@ -15,6 +13,5 @@ int KernelBrk (void* );
 int KernelDelay (int );
 int KernelTtyRead (int , void* , int );
 int KernelTtyWrite (int , void* , int );
-
 
 #endif

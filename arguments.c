@@ -1,9 +1,11 @@
 #include <comp421/hardware.h>
+#include <comp421/yalnix.h>
+#include <stdint.h>
+
 
 #include "arguments.h"
-#include "processes.h"
 #include "memorymanagement.h"
-
+#include "processes.h"
 
 /* Checks read access for string arguments */
 int CheckString (char *str) {

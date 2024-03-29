@@ -7,9 +7,7 @@
 #include <comp421/hardware.h>
 #include <comp421/yalnix.h>
 
-#include "interrupthandlers.h"
 #include "queues.h"
-#include "proclist.h"
 #include "io.h"
 
 
@@ -30,7 +28,7 @@ struct pcb {
     struct buffer input_buf;
     struct buffer output_buf;
     struct pcb *parent;
-    struct list *running_chd;
+    struct proc_list *running_chd;
     struct queue *exited_chd;
     int exit_status;
 };
@@ -38,7 +36,7 @@ struct pcb {
 // Structure of a PCB frame
 struct pcb_node {
     struct pcb *proc;
-    struct pcb_frame *next;
+    struct pcb_node *next;
 };
 
 // Declares structures to allow PCB manipulation
@@ -79,14 +77,14 @@ SavedContext* Switch (SavedContext* , void* , void* );
 int LoadProgram (char* , char** , ExceptionInfo* );
 
 // Function prototypes for process lists.
-void linit (struct list* );
-void insertl (struct list* , struct pcb* );
-void deletel (struct list* , struct pcb* );
-void clockl (struct list* );
-void exitl (struct list* );
-struct pcb* readyl (struct list* );
-int lempty (struct list );
-void ldestroy (struct list* );
+void linit (struct proc_list* );
+void insertl (struct proc_list* , struct pcb* );
+void deletel (struct proc_list* , struct pcb* );
+void clockl (struct proc_list* );
+void exitl (struct proc_list* );
+struct pcb* readyl (struct proc_list* );
+int lempty (struct proc_list );
+void ldestroy (struct proc_list* );
 
 
 #endif

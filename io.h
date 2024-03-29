@@ -4,11 +4,11 @@
 
 #include <comp421/hardware.h>
 
-#include "queue.h"
+#include "queues.h"
 
 
 // Defines possible states for each terminal
-#define FREE 0
+// #define FREE 0
 #define BUSY 1
 
 

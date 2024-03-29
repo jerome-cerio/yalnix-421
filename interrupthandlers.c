@@ -2,14 +2,12 @@
 #include <stdlib.h>
 
 #include <comp421/yalnix.h>
+#include <comp421/hardware.h>
 
-#include "syscall.h"
-#include "queues.h"
-#include "proclist.h"
-#include "processes.h"
+#include "interrupthandlers.h"
 #include "memorymanagement.h"
-#include "io.h"
-
+#include "processes.h"
+#include "systemcalls.h"
 
 /* Handles a system call */
 void KernelHandler (ExceptionInfo *info) {
@@ -68,7 +66,7 @@ void KernelHandler (ExceptionInfo *info) {
 
 /* Handles a clock interrupt */
 void ClockHandler (ExceptionInfo *info) {
-    TracePrintf(5, "clock interrupt\n");
+    TracePrintf(5, "clock interrupt %d\n", info->code);
 
     struct pcb *ready_process, *new_process;
 
@@ -104,7 +102,7 @@ void ClockHandler (ExceptionInfo *info) {
 
 /* Handles an illegal instruction interrupt */
 void IllegalHandler (ExceptionInfo *info) {
-    TracePrintf(5, "illegal instruction exception\n");
+    TracePrintf(5, "illegal instruction exception %d\n", info->code);
 
     // Prints an appropriate error message
     switch(info->code) {
@@ -187,7 +185,7 @@ void IllegalHandler (ExceptionInfo *info) {
 
 /* Handles a memory trap */
 void MemoryHandler (ExceptionInfo *info) {
-    TracePrintf(5, "memory trap\n");
+    TracePrintf(5, "memory trap at addr:%d\n", info->addr);
 
     uintptr_t trap_addr;
     struct pte *pt0;
@@ -198,7 +196,7 @@ void MemoryHandler (ExceptionInfo *info) {
     trap_addr = (uintptr_t) info->addr;
 
     // Checks if the process is attempting to grow its user stack
-    if(trap_addr >= UP_TO_PAGE(active->brk) + PAGESIZE && trap_addr < active->user_stack_base) {
+    if((long int) trap_addr >= (long int) UP_TO_PAGE(active->brk) + PAGESIZE && trap_addr < active->user_stack_base) {
         TracePrintf(5, "process %d: growing user stack\n", active->pid);
 
         // Finds the range of pages to be allocated
@@ -206,7 +204,7 @@ void MemoryHandler (ExceptionInfo *info) {
         end_index = (active->user_stack_base - VMEM_0_BASE) >> PAGESHIFT;
 
         // Checks if there are enough free pages
-        if(end_index - start_index > free_npg) {
+        if(end_index - start_index > num_free_pages) {
             TracePrintf(5, "process %d: not enough free pages\n", active->pid);
             KernelExit(ERROR);
         }
@@ -266,7 +264,7 @@ void MemoryHandler (ExceptionInfo *info) {
 
 /* Handles an arithmetic exception */
 void MathHandler (ExceptionInfo *info) {
-    TracePrintf(5, "arithmetic exception\n");
+    TracePrintf(5, "arithmetic exception %d\n", info->code);
 
     // Prints an appropriate error message
     switch(info->code) {
@@ -329,7 +327,7 @@ void MathHandler (ExceptionInfo *info) {
 
 /* Handles a receive interrupt from the terminal */
 void TtyReceiveHandler (ExceptionInfo *info) {
-    TracePrintf(5, "tty receive interrupt\n");
+    TracePrintf(5, "tty receive interrupt %d\n", info->code);
 
     int tty_id;
     struct terminal *tm;
@@ -388,7 +386,7 @@ void TtyReceiveHandler (ExceptionInfo *info) {
 
 /* Handles a transmit interrupt from the terminal */
 void TtyTransmitHandler (ExceptionInfo *info) {
-    TracePrintf(5, "tty transmit interrupt\n");
+    TracePrintf(5, "tty transmit interrupt %d\n", info->code);
 
     int tty_id;
     struct terminal *tm;
