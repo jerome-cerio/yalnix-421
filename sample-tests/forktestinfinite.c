@@ -5,6 +5,6 @@ int
 main(int argc, char **argv)
 {
     while (Fork() == 0) {
-	    TracePrintf(0, "CHILD\n");
+	    TracePrintf(0, "CHILD PROC\n");
     }
 }
